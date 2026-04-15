@@ -4,69 +4,85 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt # Import thư viện vẽ biểu đồ
+import matplotlib.pyplot as plt
 from tqdm import tqdm
-from mobilenet import MobileNetV1
+
+# Import the lightweight model from mobilenet.py
+from mobilenet import MiniMobileNet
 
 def parse_args():
-    # Khởi tạo parser
-    parser = argparse.ArgumentParser(description="Huấn luyện MobileNetV1 từ đầu trên tập CIFAR-10")
+    """
+    Parse command line arguments for training configuration.
+    """
+    parser = argparse.ArgumentParser(description="Train MiniMobileNet on MNIST Dataset")
     
-    # Khai báo các tham số CLI
-    parser.add_argument('--epochs', type=int, default=5, help='Số lượng epoch để huấn luyện (mặc định: 5)')
-    parser.add_argument('--batch-size', type=int, default=32, help='Kích thước batch (mặc định: 32)')
-    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate (mặc định: 0.001)')
-    parser.add_argument('--weight-file', type=str, default='mobilenet_v1_best.pth', help='Tên file để lưu trọng số mô hình')
-    parser.add_argument('--plot-file', type=str, default='training_curves.png', help='Tên file ảnh xuất biểu đồ')
+    # Training Hyperparameters
+    parser.add_argument('--epochs', type=int, default=5, help='Number of training epochs')
+    parser.add_argument('--batch-size', type=int, default=64, help='Input batch size for training')
+    parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for the optimizer')
+    
+    # Output Files
+    parser.add_argument('--weight-file', type=str, default='minimobile_mnist.pth', 
+                        help='Filename to save the best model weights')
+    parser.add_argument('--plot-file', type=str, default='mnist_training_results.png', 
+                        help='Filename to save the training visualization plot')
     
     return parser.parse_args()
 
 def main():
-    # 1. Lấy tham số từ CLI
     args = parse_args()
-    print("=== THÔNG SỐ HUẤN LUYỆN ===")
-    print(f"- Epochs: {args.epochs}")
-    print(f"- Batch Size: {args.batch_size}")
-    print(f"- Learning Rate: {args.lr}")
-    print(f"- Output Weight: {args.weight_file}")
-    print(f"- Output Plot: {args.plot_file}")
-    print("===========================\n")
-
+    
+    # ---------------------------------------------------------
+    # 1. Environment Setup
+    # ---------------------------------------------------------
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Đang sử dụng thiết bị: {device}\n")
+    print(f"[*] Training on device: {device}")
 
-    # 2. Chuẩn bị dữ liệu
+    # ---------------------------------------------------------
+    # 2. Data Preparation (MNIST)
+    # ---------------------------------------------------------
+    # Note: We do NOT use Resize(224) here because MiniMobileNet 
+    # is optimized to process the native 28x28 MNIST images.
     transform = transforms.Compose([
-        transforms.Resize(224),
         transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+        transforms.Normalize((0.1307,), (0.3081,)) # Global Mean and Std for MNIST
     ])
 
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=2)
+    print("[*] Loading MNIST dataset...")
+    trainset = torchvision.datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, 
+                                              shuffle=True, num_workers=2)
 
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=False, num_workers=2)
+    testset = torchvision.datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, 
+                                             shuffle=False, num_workers=2)
 
-    # 3. Khởi tạo Model, Loss, Optimizer
-    model = MobileNetV1(num_classes=10).to(device)
+    # ---------------------------------------------------------
+    # 3. Model, Loss, and Optimizer Initialization
+    # ---------------------------------------------------------
+    # num_classes=10 (digits 0-9), in_channels=1 (Grayscale)
+    model = MiniMobileNet(num_classes=10, in_channels=1).to(device)
+    
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-    # Biến để theo dõi quá trình
-    history_train_loss, history_train_acc = [], []
-    history_test_loss, history_test_acc = [], []
-    best_test_acc = 0.0 # Biến để lưu lại model tốt nhất
+    # Tracking metrics across epochs
+    train_losses, train_accs = [], []
+    test_losses, test_accs = [], []
+    best_acc = 0.0 
 
-    # 4. Vòng lặp huấn luyện
+    # ---------------------------------------------------------
+    # 4. Training Loop
+    # ---------------------------------------------------------
     for epoch in range(args.epochs):
+        # --- Training Phase ---
         model.train()
         running_loss = 0.0
         correct = 0
         total = 0
         
-        loop = tqdm(trainloader, leave=True)
-        for inputs, labels in loop:
+        progress_bar = tqdm(trainloader, desc=f"Epoch {epoch+1}/{args.epochs}")
+        for inputs, labels in progress_bar:
             inputs, labels = inputs.to(device), labels.to(device)
 
             optimizer.zero_grad()
@@ -75,22 +91,24 @@ def main():
             loss.backward()
             optimizer.step()
 
+            # Calculate metrics
             running_loss += loss.item()
             _, predicted = outputs.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
             
-            loop.set_description(f"Epoch [{epoch+1}/{args.epochs}]")
-            loop.set_postfix(loss=running_loss/len(trainloader), acc=100.*correct/total)
+            # Update progress bar info
+            progress_bar.set_postfix(loss=running_loss/len(trainloader), 
+                                     acc=100.*correct/total)
 
-        history_train_loss.append(running_loss / len(trainloader))
-        history_train_acc.append(100. * correct / total)
+        train_losses.append(running_loss / len(trainloader))
+        train_accs.append(100. * correct / total)
 
-        # --- Đánh giá trên tập Test ---
+        # --- Validation Phase ---
         model.eval()
-        test_loss = 0.0
-        test_correct = 0
-        test_total = 0
+        val_loss = 0.0
+        val_correct = 0
+        val_total = 0
         
         with torch.no_grad():
             for inputs, labels in testloader:
@@ -98,52 +116,54 @@ def main():
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
                 
-                test_loss += loss.item()
+                val_loss += loss.item()
                 _, predicted = outputs.max(1)
-                test_total += labels.size(0)
-                test_correct += predicted.eq(labels).sum().item()
+                val_total += labels.size(0)
+                val_correct += predicted.eq(labels).sum().item()
                 
-        epoch_test_loss = test_loss / len(testloader)
-        epoch_test_acc = 100. * test_correct / test_total
-        history_test_loss.append(epoch_test_loss)
-        history_test_acc.append(epoch_test_acc)
+        epoch_val_loss = val_loss / len(testloader)
+        epoch_val_acc = 100. * val_correct / val_total
+        test_losses.append(epoch_val_loss)
+        test_accs.append(epoch_val_acc)
                 
-        print(f"==> Kết thúc Epoch {epoch+1} | Test Loss: {epoch_test_loss:.4f} | Test Acc: {epoch_test_acc:.2f}%")
+        print(f"[*] Summary Epoch {epoch+1}: Val Loss: {epoch_val_loss:.4f} | Val Acc: {epoch_val_acc:.2f}%")
 
-        # 5. Lưu trọng số nếu độ chính xác trên tập test tăng lên
-        if epoch_test_acc > best_test_acc:
-            print(f"    [*] Tìm thấy model tốt hơn ({best_test_acc:.2f}% -> {epoch_test_acc:.2f}%). Đang lưu trọng số vào {args.weight_file}...")
+        # Save the best model based on validation accuracy
+        if epoch_val_acc > best_acc:
+            print(f"    [+] New best model found! Saving weights to {args.weight_file}")
             torch.save(model.state_dict(), args.weight_file)
-            best_test_acc = epoch_test_acc
+            best_acc = epoch_val_acc
 
-    print("\nQuá trình huấn luyện hoàn tất!")
+    print("\n[!] Training complete.")
 
-    # 6. Vẽ và xuất biểu đồ
-    plt.figure(figsize=(14, 5))
+    # ---------------------------------------------------------
+    # 5. Visualization and Export
+    # ---------------------------------------------------------
+    plt.figure(figsize=(12, 5))
 
+    # Loss Plot
     plt.subplot(1, 2, 1)
-    plt.plot(range(1, args.epochs+1), history_train_loss, label='Train Loss', marker='o', color='blue')
-    plt.plot(range(1, args.epochs+1), history_test_loss, label='Test/Val Loss', marker='s', color='red')
-    plt.title('Training and Validation Loss', fontsize=14)
-    plt.xlabel('Epochs', fontsize=12)
-    plt.ylabel('Loss', fontsize=12)
-    plt.xticks(range(1, args.epochs+1))
+    plt.plot(range(1, args.epochs+1), train_losses, label='Train Loss', color='blue', marker='o')
+    plt.plot(range(1, args.epochs+1), test_losses, label='Test Loss', color='red', marker='x')
+    plt.title('Training & Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
     plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.grid(True)
 
+    # Accuracy Plot
     plt.subplot(1, 2, 2)
-    plt.plot(range(1, args.epochs+1), history_train_acc, label='Train Accuracy', marker='o', color='blue')
-    plt.plot(range(1, args.epochs+1), history_test_acc, label='Test/Val Accuracy', marker='s', color='green')
-    plt.title('Training and Validation Accuracy', fontsize=14)
-    plt.xlabel('Epochs', fontsize=12)
-    plt.ylabel('Accuracy (%)', fontsize=12)
-    plt.xticks(range(1, args.epochs+1))
+    plt.plot(range(1, args.epochs+1), train_accs, label='Train Acc', color='blue', marker='o')
+    plt.plot(range(1, args.epochs+1), test_accs, label='Test Acc', color='green', marker='x')
+    plt.title('Training & Validation Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy (%)')
     plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.grid(True)
 
     plt.tight_layout()
-    plt.savefig(args.plot_file, dpi=300, bbox_inches='tight')
-    print(f"Đã lưu biểu đồ thành công: '{args.plot_file}'")
+    plt.savefig(args.plot_file, dpi=300)
+    print(f"[*] Plot saved to {args.plot_file}")
 
 if __name__ == "__main__":
     main()
