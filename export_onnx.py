@@ -2,66 +2,89 @@ import argparse
 import torch
 import onnx
 
-from mobilenet import MiniMobileNet
+# Import the lightweight model designed for MNIST
+from mobilenet import MiniMobileNet 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Export PyTorch MiniMobileNet model to ONNX format")
-    parser.add_argument('--weight-file', type=str, required=True, help='path to .pth file (ví dụ: mobilenet_v1_best.pth)')
-    parser.add_argument('--output-file', type=str, default='mobilenet_v1.onnx', help='path to output ONNX file')
-    parser.add_argument('--num-classes', type=int, default=10, help='number of classes (default: 10 for CIFAR-10)')
-    parser.add_argument('--img-size', type=int, default=224, help='input image size (default: 224)')
+    """
+    Parse command line arguments for ONNX export configuration.
+    """
+    parser = argparse.ArgumentParser(description="Export PyTorch MiniMobileNet to ONNX format")
+    
+    # File paths
+    parser.add_argument('--weight-file', type=str, default='./output/sudoku-net.pth', 
+                        help='Path to the trained PyTorch weights file (.pth)')
+    parser.add_argument('--output-file', type=str, default='./output/sudoku-net.onnx', 
+                        help='Output filename for the ONNX model')
+    
+    # Model configuration (Must match training setup)
+    parser.add_argument('--num-classes', type=int, default=10, help='Number of output classes')
+    parser.add_argument('--in-channels', type=int, default=1, help='Number of input channels (1 for Grayscale)')
+    parser.add_argument('--img-size', type=int, default=28, help='Input image size (28 for MNIST)')
+    
     return parser.parse_args()
 
 def main():
     args = parse_args()
     print(f"[*] Loading weights from: {args.weight_file}")
     
-    # 1. init model & weights
-    # init model with the same architecture as during training, but we will load the trained weights from the .pth file
-    model = MiniMobileNet(num_classes=args.num_classes)
+    # ---------------------------------------------------------
+    # 1. Initialize Model & Load Weights
+    # ---------------------------------------------------------
+    model = MiniMobileNet(num_classes=args.num_classes, in_channels=args.in_channels)
     
-    # use map_location='cpu' to ensure compatibility even if the model was trained on GPU
-    state_dict = torch.load(args.weight_file, map_location=torch.device('cpu'))
-    model.load_state_dict(state_dict)
-    
-    # MUST set model to eval mode before exporting to ONNX
-    # if not, layers like Dropout or BatchNorm will behave incorrectly during export
+    try:
+        # Load weights, mapping to CPU to ensure it works on machines without GPU
+        state_dict = torch.load(args.weight_file, map_location=torch.device('cpu'))
+        model.load_state_dict(state_dict)
+        print("[+] Weights loaded successfully.")
+    except Exception as e:
+        print(f"[-] Error loading weights: {e}")
+        return
+
+    # CRITICAL: Set model to evaluation mode before exporting.
+    # This disables Dropout and fixes BatchNorm running statistics.
     model.eval()
 
-    # 2. create dummy input for ONNX export
-    # size: (Batch_Size, Channels, Height, Width). Batch size usually set to 1 when exporting.
-    dummy_input = torch.randn(1, 3, args.img_size, args.img_size, requires_grad=True)
+    # ---------------------------------------------------------
+    # 2. Create Dummy Input
+    # ---------------------------------------------------------
+    # Shape: (Batch_Size, Channels, Height, Width) -> (1, 1, 28, 28) for MNIST
+    dummy_input = torch.randn(1, args.in_channels, args.img_size, args.img_size, requires_grad=True)
 
-    print(f"[*] Starting export to ONNX format...")
+    print(f"[*] Exporting model to ONNX format...")
     
-    # 3. Export model to ONNX
+    # ---------------------------------------------------------
+    # 3. Export to ONNX
+    # ---------------------------------------------------------
     torch.onnx.export(
-        model,                       
-        dummy_input,                 
-        args.output_file,            
-        export_params=True,          
-        opset_version=11,            
-        do_constant_folding=True,    
-        input_names=['input'],       
-        output_names=['output'],     
+        model,                       # The PyTorch model
+        dummy_input,                 # Model input (or a tuple for multiple inputs)
+        args.output_file,            # Where to save the model
+        export_params=True,          # Store the trained parameter weights inside the model file
+        opset_version=18,            # The ONNX version to export the model to
+        do_constant_folding=True,    # Optimize by pre-calculating constant operations
+        input_names=['input'],       # The model's input names
+        output_names=['output'],     # The model's output names
         
-        # setting Dynamic Axes allows the exported ONNX model to accept variable batch sizes during inference.
-        # helps the ONNX file later to accept variable batch sizes instead of being fixed to 1
+        # Dynamic axes allow the ONNX model to accept variable batch sizes later
         dynamic_axes={
             'input': {0: 'batch_size'},    
             'output': {0: 'batch_size'}
         }
     )
     
-    print(f"[+] Successfully exported file: {args.output_file}")
+    print(f"[+] Model successfully exported to: {args.output_file}")
 
-    # 4. verify the exported ONNX model
+    # ---------------------------------------------------------
+    # 4. Verify the ONNX Model
+    # ---------------------------------------------------------
     try:
         onnx_model = onnx.load(args.output_file)
         onnx.checker.check_model(onnx_model)
-        print("[+] Valid ONNX model! Graph structure has no errors.")
+        print("[+] ONNX model is valid! Graph structure is correct.")
     except Exception as e:
-        print(f"[-] Warning: ONNX verification failed: {e}")
+        print(f"[-] Warning: ONNX model validation failed: {e}")
 
 if __name__ == "__main__":
     main()
