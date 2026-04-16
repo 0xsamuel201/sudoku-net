@@ -14,7 +14,7 @@ This repository demonstrates an end-to-end pipeline, from designing a lightweigh
 The pipeline is designed with a modular architecture, separating Computer Vision tasks, Deep Learning inference, and Algorithmic problem-solving into distinct stages.
 
 ```mermaid
-graph LR
+graph TD
     A[Puzzle Screen Capture] -->|Input| B(Sudoku Detector <br/> OpenCV)
     B -->|Warped Top-Down Image| C(Digit Recognizer <br/> ONNX MiniMobileNet)
     C -->|Unsolved 9x9 Matrix| D(Sudoku Solver <br/> Backtracking)
