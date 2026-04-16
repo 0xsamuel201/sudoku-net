@@ -5,6 +5,8 @@
 [![Accuracy](https://img.shields.io/badge/Accuracy-99.09%25-brightgreen.svg)]()
 [![FPS](https://img.shields.io/badge/CPU_FPS-14547-blue.svg)]()
 
+![end-to-end demo](./images/demo.png)
+
 This repository demonstrates an end-to-end Machine Learning pipeline, from designing a lightweight Custom CNN architecture to deploying it for high-throughput inference using ONNX Runtime.
 
 The project features **MiniMobileNet**, a heavily optimized variant of MobileNetV1 explicitly designed for 28x28 grayscale images (MNIST). It removes redundant layers and bottlenecks, making it an ideal foundational architecture for edge-deployed Optical Character Recognition (OCR) systems.
