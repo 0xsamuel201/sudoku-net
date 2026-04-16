@@ -52,7 +52,7 @@ ONNX Runtime significantly accelerates inference through operator fusion and rem
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install torch torchvision onnx onnxscript onnxruntime matplotlib tqdm
+uv pip install torch torchvision onnx onnxscript onnxruntime matplotlib tqdm scipy scikit-image
 ```
 
 **2. Training**
@@ -77,4 +77,10 @@ uv run benchmark.py
 
 ```bash
 uv run compare_inference.py
+```
+
+**6. Test board extraction**
+
+```bash
+uv run extract_puzzle.py
 ```
