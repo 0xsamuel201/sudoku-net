@@ -123,13 +123,13 @@ ONNX Runtime significantly accelerates inference through operator fusion and rem
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install torch torchvision onnx onnxscript onnxruntime matplotlib tqdm scipy scikit-image
+uv pip install torch torchvision onnx onnxscript onnxruntime matplotlib tqdm scipy scikit-image streamlit
 ```
 
 **2. Training**
 
 ```bash
-python train.py --epochs 30 --batch-size 64 --lr 0.0005 --weight-file output/sudoku-net.pth --plot-file output/report.png
+python train.py --epochs 30 --batch-size 64 --lr 0.0005 --weight-file weights/sudoku-net.pth --plot-file output/report.png
 ```
 
 **3. Export to ONNX**
