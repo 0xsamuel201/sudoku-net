@@ -45,7 +45,10 @@ ONNX Runtime significantly accelerates inference through operator fusion and rem
 - `mobilenet.py`: Contains the model architecture (`DepthwiseSeparableConv` and `MiniMobileNet`).
 - `train.py`: The training pipeline with CLI arguments, automatic checkpointing, and matplotlib metric tracking.
 - `export_onnx.py`: Script to convert the `.pth` weights into an optimized `.onnx` graph.
-- `benchmark_dataset.py`: The evaluation script comparing the two engines.
+- `benchmarkt.py`: The evaluation script comparing the two engines.
+- `extract_puzzle.py`: Script to extract sudoku board and corresponding numbers, then display results nicely on terminal.
+- `solver.py`: Backtracking algo to solve sudoku puzzles.
+- `weights`: folder contains trained weights including both `.pth` and `.onnx` models.
 
 ## Quick Start
 
