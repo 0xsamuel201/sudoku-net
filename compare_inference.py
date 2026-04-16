@@ -47,8 +47,8 @@ def main():
     # ---------------------------------------------------------
     # 1. SETUP & LOAD MODELS
     # ---------------------------------------------------------
-    weight_path = './output/sudoku-net.pth'
-    onnx_path = './output/sudoku-net.onnx'
+    weight_path = './weights/sudoku-net.pth'
+    onnx_path = './weights/sudoku-net.onnx'
     
     # create dummy input gray image of shape (1, 1, 28, 28)
     dummy_input_pt = torch.randn(1, 1, 28, 28)

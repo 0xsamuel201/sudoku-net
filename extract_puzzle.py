@@ -248,7 +248,7 @@ if __name__ == "__main__":
     # prepare a test image path (replace this with your own image path)
     TEST_IMAGE = "./images/mobile_game_sample.jpg" 
     WARPED_IMAGE = "./images/warped_mobile_game_board.jpg"
-    ONNX_MODEL = "./output/sudoku-net.onnx"
+    ONNX_MODEL = "./weights/sudoku-net.onnx"
     
     try:
         print("[*] processing...")

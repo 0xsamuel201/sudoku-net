@@ -12,8 +12,8 @@ def main():
     # ---------------------------------------------------------
     # 1. config for benchmarking
     # ---------------------------------------------------------
-    weight_path = './output/sudoku-net.pth'
-    onnx_path = './output/sudoku-net.onnx'
+    weight_path = './weights/sudoku-net.pth'
+    onnx_path = './weights/sudoku-net.onnx'
     batch_size = 64 # use 1 for measuring latency per image, or larger batch size for measuring throughput (images per second)
     
     print("=== prepare MNIST data ===")

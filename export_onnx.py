@@ -12,9 +12,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Export PyTorch MiniMobileNet to ONNX format")
     
     # File paths
-    parser.add_argument('--weight-file', type=str, default='./output/sudoku-net.pth', 
+    parser.add_argument('--weight-file', type=str, default='./weights/sudoku-net.pth', 
                         help='Path to the trained PyTorch weights file (.pth)')
-    parser.add_argument('--output-file', type=str, default='./output/sudoku-net.onnx', 
+    parser.add_argument('--output-file', type=str, default='./weights/sudoku-net.onnx', 
                         help='Output filename for the ONNX model')
     
     # Model configuration (Must match training setup)

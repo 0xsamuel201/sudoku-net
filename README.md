@@ -84,3 +84,9 @@ uv run compare_inference.py
 ```bash
 uv run extract_puzzle.py
 ```
+
+**7. End-to-end run**
+
+```bash
+uv run main.py
+```
